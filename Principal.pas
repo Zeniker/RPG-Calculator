@@ -149,7 +149,7 @@ begin
   else
     DanoTotal:= 0;
 
-  DanoTotal:= DanoTotal + (DanoTotal * (PctTotalBonus*PctTotalScaling/100));
+  DanoTotal:= DanoTotal + ((DanoTotal*(PctTotalBonus*PctTotalScaling/100))/100);
   edtDanoTotal.Text:= IntToStr(Trunc(DanoTotal));
 end;
 
