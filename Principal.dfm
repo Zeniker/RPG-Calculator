@@ -405,7 +405,6 @@ object frmPrincipal: TfrmPrincipal
       BevelKind = bkSoft
       BevelOuter = bvNone
       TabOrder = 5
-      ExplicitTop = 231
       object edtDanoTotal: TEdit
         Left = 20
         Top = 7
