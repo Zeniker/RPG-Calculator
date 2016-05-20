@@ -97,13 +97,12 @@ procedure TfrmPrincipal.btnCalcularClick(Sender: TObject);
 var
   PctMental,
   PctDex,
-  PctForca,
-  PctTotalScaling: integer;
+  PctForca: integer;
 
   PctBonusMental,
   PctBonusDex,
-  PctBonusForca,
-  PctTotalBonus: integer;
+  PctBonusForca: integer;
+  PctTotalBonus: double;
 
   DanoTotal: double;
 begin
@@ -123,8 +122,6 @@ begin
   else
     PctMental:= 0;
 
-  PctTotalScaling:= PctMental + PctDex + PctForca;
-
   //Dano bonus
   if edtDanoDestreza.Text <> '' then
     PctBonusDex:= StrToInt(edtDanoDestreza.Text)
@@ -141,7 +138,9 @@ begin
   else
     PctBonusMental:= 0;
 
-  PctTotalBonus:= PctBonusMental + PctBonusDex + PctBonusForca;
+  PctTotalBonus:= ((PctBonusMental*PctMental)/100) +
+                  ((PctBonusDex*PctDex)/100) +
+                  ((PctBonusForca*PctForca)/100);
 
   //Dano base
   if edtDanoBase.Text <> '' then
@@ -149,7 +148,7 @@ begin
   else
     DanoTotal:= 0;
 
-  DanoTotal:= DanoTotal + ((DanoTotal*(PctTotalBonus*PctTotalScaling/100))/100);
+  DanoTotal:= DanoTotal + ((DanoTotal*PctTotalBonus)/100);
   edtDanoTotal.Text:= IntToStr(Trunc(DanoTotal));
 end;
 
