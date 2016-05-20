@@ -76,8 +76,9 @@ type
     Scaling: TScaling;
     procedure CalculaVida;
     procedure CalculaDestreza;
-    function CalculaAtributos(pPontos: integer; pMulti1, pMulti2, pMulti3: double; pCap1,
-      pCap2: integer; CalculaPorLvl: boolean = false; pMultiLvl: double = 0): double;
+    function CalculaBonus(pPontos: integer; pIntervalos: array of integer;
+      pMultiplicadores: array of double; CalculaPorLvl: boolean = false;
+      pMultiLvl: double = 0): double;
     procedure CalculaForca;
     procedure CalculaMental;
   public
@@ -96,9 +97,17 @@ procedure TfrmPrincipal.btnCalcularClick(Sender: TObject);
 var
   PctMental,
   PctDex,
-  PctForca: integer;
+  PctForca,
+  PctTotalScaling: integer;
+
+  PctBonusMental,
+  PctBonusDex,
+  PctBonusForca,
+  PctTotalBonus: integer;
+
   DanoTotal: double;
 begin
+  //Scaling
   if edtEscDex.Text <> '' then
     PctDex:= Scaling.BuscaPercentual(edtEscDex.Text)
   else
@@ -114,20 +123,46 @@ begin
   else
     PctMental:= 0;
 
-  DanoTotal:= StrToInt(edtDanoBase.Text);
-  DanoTotal:= DanoTotal + (PctMental*100) / StrToFloat(edtDanoMental.Text);
-  DanoTotal:= DanoTotal + (PctForca*100) / StrToFloat(edtDanoForca.Text);
-  DanoTotal:= DanoTotal + (PctDex*100) / StrToFloat(edtDanoDestreza.Text);
+  PctTotalScaling:= PctMental + PctDex + PctForca;
+
+  //Dano bonus
+  if edtDanoDestreza.Text <> '' then
+    PctBonusDex:= StrToInt(edtDanoDestreza.Text)
+  else
+    PctBonusDex:= 0;
+
+  if edtDanoForca.Text <> '' then
+    PctBonusForca:= StrToInt(edtDanoForca.Text)
+  else
+    PctBonusForca:= 0;
+
+  if edtDanoMental.Text <> '' then
+    PctBonusMental:= StrToInt(edtDanoMental.Text)
+  else
+    PctBonusMental:= 0;
+
+  PctTotalBonus:= PctBonusMental + PctBonusDex + PctBonusForca;
+
+  //Dano base
+  if edtDanoBase.Text <> '' then
+    DanoTotal:= StrToInt(edtDanoBase.Text)
+  else
+    DanoTotal:= 0;
+
+  DanoTotal:= DanoTotal + (DanoTotal * (PctTotalBonus*PctTotalScaling/100));
   edtDanoTotal.Text:= IntToStr(Trunc(DanoTotal));
 end;
 
 //======================================================================================
-function TfrmPrincipal.CalculaAtributos(pPontos: integer; pMulti1, pMulti2, pMulti3: double; pCap1,
-      pCap2: integer; CalculaPorLvl: boolean = false; pMultiLvl: double = 0): double;
+function TfrmPrincipal.CalculaBonus(pPontos: integer; pIntervalos: array of integer;
+  pMultiplicadores: array of double; CalculaPorLvl: boolean;
+  pMultiLvl: double): double;
 var
- iLcLevel,
- iLcPontosRestante: integer;
+ iLcLevel: integer;
  dLcAtributo: double;
+ i: integer;
+ j: integer;
+ bLcContinua: boolean;
 begin
   if CalculaPorLvl then
   begin
@@ -141,139 +176,114 @@ begin
   else
     dLcAtributo:= 0;
 
-  //Calculo
-  if pPontos > pCap1 then //Passa do Cap1
+  i := Length(pIntervalos)-1;
+  bLcContinua:= True;
+  while bLcContinua do
   begin
-    dLcAtributo:= dLcAtributo + (pCap1 * pMulti1);
-
-    iLcPontosRestante:= pPontos - pCap1;
-
-    if(iLcPontosRestante > (pCap2 - pCap1)) then //Passa do Cap2
+    if i > -1 then
     begin
-      dLcAtributo:= dLcAtributo + ((pCap2 - pCap1) * pMulti2);
-
-      iLcPontosRestante:= iLcPontosRestante - (pCap2 - pCap1);
-
-      dLcAtributo:= dLcAtributo + (iLcPontosRestante * pMulti3)
+      if pPontos >= pIntervalos[i] then
+      begin
+        for j := 0 to i-1 do
+        begin
+          dLcAtributo:= dLcAtributo + ((pIntervalos[j+1] - pIntervalos[j])*pMultiplicadores[j]);
+        end;
+        pPontos:= pPontos - pIntervalos[i];
+        dLcAtributo:= dLcAtributo + (pPontos * pMultiplicadores[i]);
+        bLcContinua:= False;
+      end
+      else
+        i:= i - 1;
     end
     else
-      dLcAtributo:= dLcAtributo + (iLcPontosRestante*pMulti2);
-  end
-  else
-    dLcAtributo:= dLcAtributo + (pPontos * pMulti1);
-
+      bLcContinua:= false;
+  end;
 
   Result:= dLcAtributo;
 end;
 
 //======================================================================================
 procedure TfrmPrincipal.CalculaDestreza;
-const
-  iLcMulti1 = 3.5;
-  iLcMulti2 = 3;
-  iLcMulti3 = 2.5;
-
-  iLcCap1 = 20;
-  iLcCap2 = 30;
-
 var
- iLcPontos: integer;
+  iLcPontos: integer;
+  iLcIntervalo: array of integer;
+  dLcMulti: array of double;
 begin
   if edtDestreza.Text = '' then
     iLcPontos:= 0
   else
     iLcPontos:= StrToInt(edtDestreza.Text);
 
-  edtDanoDestreza.Text:= FloatToStr(CalculaAtributos(iLcPontos,
-                                                     iLcMulti1,
-                                                     iLcMulti2,
-                                                     iLcMulti3,
-                                                     iLcCap1,
-                                                     iLcCap2));
+  iLcIntervalo:= [0,20,40];
+  dLcMulti:= [2, 2.25, 1];
+
+  edtDanoDestreza.Text:= FloatToStr(CalculaBonus(iLcPontos,
+                                                 iLcIntervalo,
+                                                 dLcMulti));
 
 end;
 
 //======================================================================================
 procedure TfrmPrincipal.CalculaForca;
-const
-  iLcMulti1 = 3.5;
-  iLcMulti2 = 3;
-  iLcMulti3 = 2.5;
-
-  iLcCap1 = 20;
-  iLcCap2 = 30;
-
 var
- iLcPontos: integer;
+  iLcPontos: integer;
+  iLcIntervalo: array of integer;
+  dLcMulti: array of double;
 begin
   if edtForca.Text = '' then
     iLcPontos:= 0
   else
     iLcPontos:= StrToInt(edtForca.Text);
 
-  edtDanoForca.Text:= FloatToStr(CalculaAtributos(iLcPontos,
-                                                  iLcMulti1,
-                                                  iLcMulti2,
-                                                  iLcMulti3,
-                                                  iLcCap1,
-                                                  iLcCap2));
+  iLcIntervalo:= [0,20,40];
+  dLcMulti:= [2, 2.25, 1];
+
+  edtDanoForca.Text:= FloatToStr(CalculaBonus(iLcPontos,
+                                              iLcIntervalo,
+                                              dLcMulti));
 
 end;
 
 //======================================================================================
 procedure TfrmPrincipal.CalculaMental;
-const
-  iLcMulti1 = 3;
-  iLcMulti2 = 3.5;
-  iLcMulti3 = 2.5;
-
-  iLcCap1 = 20;
-  iLcCap2 = 30;
-
 var
- iLcPontos: integer;
+  iLcPontos: integer;
+  iLcIntervalo: array of integer;
+  dLcMulti: array of double;
 begin
   if edtMental.Text = '' then
     iLcPontos:= 0
   else
     iLcPontos:= StrToInt(edtMental.Text);
 
-  edtDanoMental.Text:= FloatToStr(CalculaAtributos(iLcPontos,
-                                                   iLcMulti1,
-                                                   iLcMulti2,
-                                                   iLcMulti3,
-                                                   iLcCap1,
-                                                   iLcCap2));
+  iLcIntervalo:= [0,10,30,50,65];
+  dLcMulti:= [1,2.25,1.75,1.25,1];
+
+  edtDanoMental.Text:= FloatToStr(CalculaBonus(iLcPontos,
+                                               iLcIntervalo,
+                                               dLcMulti));
 end;
 
 //======================================================================================
 procedure TfrmPrincipal.CalculaVida;
-const
-  iLcVidaLevel = 5;
-
-  iLcMulti1 = 30;
-  iLcMulti2 = 25;
-  iLcMulti3 = 20;
-
-  iLcCap1 = 20;
-  iLcCap2 = 30;
-
 var
- iLcPontos: integer;
+  iLcPontos: integer;
+  iLcIntervalo: array of integer;
+  dLcMulti: array of double;
 begin
   if edtVigor.Text = '' then
     iLcPontos:= 0
   else
     iLcPontos:= StrToInt(edtVigor.Text);
 
-  edtVida.Text:= FloatToStr(CalculaAtributos(iLcPontos,
-                                             iLcMulti1,
-                                             iLcMulti2,
-                                             iLcMulti3,
-                                             iLcCap1,
-                                             iLcCap2,
-                                             True,
-                                             iLcVidaLevel));
+  iLcIntervalo:= [0,20,30,40];
+  dLcMulti:= [20,25,20,10];
+
+  edtVida.Text:= FloatToStr(400 + CalculaBonus(iLcPontos,
+                                               iLcIntervalo,
+                                               dLcMulti,
+                                               True,
+                                               5));
 end;
 
 //======================================================================================
@@ -317,6 +327,7 @@ end;
 //======================================================================================
 procedure TfrmPrincipal.FormClose(Sender: TObject; var Action: TCloseAction);
 begin
+  Scaling.Free;
   Action:= caFree;
 end;
 
@@ -324,21 +335,24 @@ end;
 procedure TfrmPrincipal.FormShow(Sender: TObject);
 begin
   Scaling:= TScaling.Create;
-  Scaling.AddEscalamento('A+', 0);
-  Scaling.AddEscalamento('A',  0);
-  Scaling.AddEscalamento('A-', 0);
-  Scaling.AddEscalamento('B+', 0);
-  Scaling.AddEscalamento('B',  0);
-  Scaling.AddEscalamento('B-', 0);
-  Scaling.AddEscalamento('C+', 0);
-  Scaling.AddEscalamento('C',  0);
-  Scaling.AddEscalamento('C-', 0);
-  Scaling.AddEscalamento('D+', 0);
-  Scaling.AddEscalamento('D',  0);
-  Scaling.AddEscalamento('D-', 0);
-  Scaling.AddEscalamento('E+', 0);
-  Scaling.AddEscalamento('E',  0);
-  Scaling.AddEscalamento('E-', 0);
+  Scaling.AddEscalamento('S+', 200);
+  Scaling.AddEscalamento('S',  170);
+  Scaling.AddEscalamento('S-', 145);
+  Scaling.AddEscalamento('A+', 135);
+  Scaling.AddEscalamento('A',  125);
+  Scaling.AddEscalamento('A-', 110);
+  Scaling.AddEscalamento('B+', 95);
+  Scaling.AddEscalamento('B',  85);
+  Scaling.AddEscalamento('B-', 80);
+  Scaling.AddEscalamento('C+', 75);
+  Scaling.AddEscalamento('C',  65);
+  Scaling.AddEscalamento('C-', 55);
+  Scaling.AddEscalamento('D+', 50);
+  Scaling.AddEscalamento('D',  30);
+  Scaling.AddEscalamento('D-', 25);
+  Scaling.AddEscalamento('E+', 20);
+  Scaling.AddEscalamento('E',  10);
+  Scaling.AddEscalamento('E-', 1);
 end;
 
 { TScaling }
@@ -361,7 +375,7 @@ var
   i: integer;
 begin
   Result:= 0;
-  for i := 0 to Length(Escalamento) do
+  for i := 0 to Length(Escalamento)-1 do
   begin
     if Escalamento[i].ID = ID then
     begin
